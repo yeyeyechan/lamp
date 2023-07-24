@@ -1,0 +1,13 @@
+spring:
+  profiles:
+    active: dev
+  mvc:
+    pathmatch: matching-strategy=ant_path_matcher
+upbit:
+  wsuri : "wss://api.upbit.com/websocket/v1"
+
+---
+spring:
+  config:
+    activate:
+      on-profile : prod
