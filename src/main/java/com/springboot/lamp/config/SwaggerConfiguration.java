@@ -19,7 +19,7 @@ public class SwaggerConfiguration {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis(RequestHandlerSelectors.basePackage("com.springboot.hello"))
+                .apis(RequestHandlerSelectors.basePackage("com.springboot.lamp"))
                 .paths(PathSelectors.any())
                 .build();
     }

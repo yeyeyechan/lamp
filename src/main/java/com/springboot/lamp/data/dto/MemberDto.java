@@ -1,4 +1,4 @@
-package com.springboot.lamp.dto;
+package com.springboot.lamp.data.dto;
 
 public class MemberDto {
     public String getName() {

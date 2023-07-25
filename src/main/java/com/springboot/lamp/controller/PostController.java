@@ -1,6 +1,6 @@
 package com.springboot.lamp.controller;
 
-import com.springboot.lamp.dto.MemberDto;
+import com.springboot.lamp.data.dto.MemberDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

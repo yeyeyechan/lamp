@@ -1,6 +1,6 @@
 package com.springboot.lamp.controller;
 
-import com.springboot.lamp.dto.MemberDto;
+import com.springboot.lamp.data.dto.MemberDto;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.slf4j.Logger;

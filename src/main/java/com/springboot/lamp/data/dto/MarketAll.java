@@ -1,4 +1,4 @@
-package com.springboot.lamp.dto;
+package com.springboot.lamp.data.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

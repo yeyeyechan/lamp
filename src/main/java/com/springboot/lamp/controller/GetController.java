@@ -3,7 +3,7 @@ package com.springboot.lamp.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.springboot.lamp.dto.MarketAll;
+import com.springboot.lamp.data.dto.MarketAll;
 import com.springboot.lamp.util.WebSocketUtil;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
