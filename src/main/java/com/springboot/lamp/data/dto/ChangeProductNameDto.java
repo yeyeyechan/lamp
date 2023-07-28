@@ -1,6 +1,7 @@
 package com.springboot.lamp.data.dto;
 
-public class ChangeProductNameDto { private Long number;
+public class ChangeProductNameDto {
+    private Long number;
 
     private String name;
 

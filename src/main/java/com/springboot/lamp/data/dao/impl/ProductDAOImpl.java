@@ -51,7 +51,7 @@ public class ProductDAOImpl implements ProductDAO {
 
         if(selectedProduct.isPresent()){
             Product product = selectedProduct.get();
-            productRepository.delete(product);
+            this.productRepository.delete(product);
         }else{
             throw new Exception();
         }

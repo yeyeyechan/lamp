@@ -18,8 +18,12 @@ spring:
         format_sql: true
 upbit:
   wsuri : "wss://api.upbit.com/websocket/v1"
+  tickeruri : "https://api.upbit.com/v1/market/all"
 
-
+coinmarketcap:
+  apikey: "8276daf5-5b8d-4685-80c2-ec93ea55bdcb"
+  coininfouri: "https://pro-api.coinmarketcap.com/v2/cryptocurrency/info"
+  mapinfouri: "https://pro-api.coinmarketcap.com/v1/cryptocurrency/map"
 ---
 spring:
   config:
