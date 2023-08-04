@@ -36,4 +36,6 @@ public class CoinMarketMetaDAOImpl implements CoinMarketMetaDAO {
         return this.coinMarketMetaRepository.findAllByNameIn(nameList);
     }
 
+
+
 }

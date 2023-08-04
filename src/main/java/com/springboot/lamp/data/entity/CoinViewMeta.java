@@ -20,7 +20,7 @@ import lombok.ToString;
 @ToString()
 @Table(name="coin_view_meta")
 public class CoinViewMeta {
-  @Id
+
   private String market;
 
   @Column(nullable = false ,name="korean_name")
@@ -33,7 +33,7 @@ public class CoinViewMeta {
   @Column(nullable = false,name="logo")
   private String logo;
 
-
+  @Id
   private int id;
 
   private String name;

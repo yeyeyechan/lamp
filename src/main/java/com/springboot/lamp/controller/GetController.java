@@ -3,6 +3,7 @@ package com.springboot.lamp.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.springboot.lamp.data.dao.CoinViewMetaDAO;
 import com.springboot.lamp.data.dto.MarketAll;
 import com.springboot.lamp.util.WebSocketUtil;
 import kong.unirest.HttpResponse;
@@ -23,8 +24,15 @@ import java.util.*;
 @RequestMapping("/api/v1/get-coin")
 public class GetController {
     private final Logger LOGGER = LoggerFactory.getLogger(HelloController.class);
+    public final CoinViewMetaDAO coinViewMetaDAO;
+    public final WebSocketUtil webSocketUtil;
     @Value("${upbit.wsuri}")
     private URI wsuri;
+
+    GetController(CoinViewMetaDAO coinViewMetaDAO , WebSocketUtil webSocketUtil){
+        this.coinViewMetaDAO =coinViewMetaDAO;
+        this.webSocketUtil = webSocketUtil;
+    }
     @GetMapping(value="/soar" )
     public String getSoar(){
         HttpResponse<String> response = Unirest.get("https://api.upbit.com/v1/candles/minutes/1?market=KRW-BTC&count=1")
@@ -49,8 +57,7 @@ public class GetController {
     @GetMapping(value="/ticker")
     public String getTicker() throws Exception {
         LOGGER.info("wsuri   {} ", wsuri);
-        WebSocketUtil webSocketUtil = new WebSocketUtil(wsuri);
-        webSocketUtil.connect();
+        this.webSocketUtil.connect();
         JSONArray jsonArray = new JSONArray();
 
         jsonArray.put(new JSONObject().put("ticket", UUID.randomUUID()));

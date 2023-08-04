@@ -19,4 +19,14 @@ CoinViewMetaDAOimpl(CoinViewMetaRepository coinViewMetaRepository){
   public List<CoinViewMeta> makeCoinViewMeta() {
     return this.coinViewMetaRepository.makeCoinViewMeta();
   }
+
+  @Override
+  public List<CoinViewMeta> findAllCoinViewMeta() {
+    return this.coinViewMetaRepository.findAll();
+  }
+
+  @Override
+  public CoinViewMeta findByMarket(String market) {
+    return this.coinViewMetaRepository.findByMarket(market);
+  }
 }

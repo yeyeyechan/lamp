@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.springboot.lamp.controller.UpbitController;
 import com.springboot.lamp.data.dao.CoinMarketMapDAO;
 import com.springboot.lamp.data.dao.CoinMarketMetaDAO;
+import com.springboot.lamp.data.dao.CoinViewMetaDAO;
 import com.springboot.lamp.data.dao.UpbitMarketDAO;
 import com.springboot.lamp.data.dto.CoinMarketMapDto;
 import com.springboot.lamp.data.dto.CoinMarketMapResponseDto;
@@ -14,13 +15,21 @@ import com.springboot.lamp.data.dto.CoinMarketMetaDto;
 import com.springboot.lamp.data.dto.CoinMarketMetaResponseDto;
 import com.springboot.lamp.data.dto.UpbitMarketDto;
 import com.springboot.lamp.data.dto.UpbitMarketResponseDto;
+import com.springboot.lamp.data.dto.UpbitTickerDto;
+import com.springboot.lamp.data.dto.UpbitTickerResponseDto;
 import com.springboot.lamp.data.entity.CoinMarketMap;
 import com.springboot.lamp.data.entity.CoinMarketMeta;
+import com.springboot.lamp.data.entity.CoinViewMeta;
 import com.springboot.lamp.data.entity.UpbitMarket;
+import com.springboot.lamp.data.entity.coinview.SoarMeta;
+import com.springboot.lamp.data.entity.upbit.UpbitTicker;
 import com.springboot.lamp.data.repository.UpbitMarketRepository;
 import com.springboot.lamp.service.UpbitService;
+import com.springboot.lamp.util.WebSocketUtil;
+import java.util.UUID;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
+import kong.unirest.json.JSONArray;
 import net.minidev.json.JSONObject;
 import net.minidev.json.parser.JSONParser;
 import net.minidev.json.parser.ParseException;
@@ -28,6 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.cache.CacheProperties.Redis;
+import org.springframework.data.redis.core.ListOperations;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +51,10 @@ import java.util.Map;
 @Service
 public class UpbitServiceImpl implements UpbitService {
     private final Logger LOGGER = LoggerFactory.getLogger(UpbitServiceImpl.class);
+    private final RedisTemplate<String, List<SoarMeta>> redisTemplate;
+    private final SimpMessagingTemplate simpMessagingTemplate;
+    @Value("${upbit.marketalluri}")
+    private String marketalluri;
 
     @Value("${upbit.tickeruri}")
     private String tickeruri;
@@ -51,11 +68,17 @@ public class UpbitServiceImpl implements UpbitService {
 
     public final CoinMarketMapDAO coinMarketMapDAO;
     public final CoinMarketMetaDAO coinMarketMetaDAO;
+    public final CoinViewMetaDAO coinViewMetaDAO;
+    public final WebSocketUtil webSocketUtil;
     @Autowired
-    UpbitServiceImpl(UpbitMarketDAO upbitMarketDAO, CoinMarketMetaDAO coinMarketMetaDAO, CoinMarketMapDAO coinMarketMapDAO){
+    UpbitServiceImpl(UpbitMarketDAO upbitMarketDAO, CoinMarketMetaDAO coinMarketMetaDAO, CoinMarketMapDAO coinMarketMapDAO, RedisTemplate redisTemplate, SimpMessagingTemplate simpMessagingTemplate,CoinViewMetaDAO coinViewMetaDAO, WebSocketUtil webSocketUtil){
         this.upbitMarketDAO = upbitMarketDAO;
         this.coinMarketMapDAO = coinMarketMapDAO;
         this.coinMarketMetaDAO = coinMarketMetaDAO;
+        this.redisTemplate = redisTemplate;
+        this.simpMessagingTemplate= simpMessagingTemplate;
+        this.coinViewMetaDAO= coinViewMetaDAO;
+        this.webSocketUtil = webSocketUtil;
     }
 
     @Override
@@ -203,7 +226,7 @@ public class UpbitServiceImpl implements UpbitService {
     //@Scheduled(fixedDelay = 500000)
     public void scheduleSaveAllUpbitMarket()
         throws JsonProcessingException, ParseException, InterruptedException {
-        HttpResponse<String> response = Unirest.get(tickeruri)
+        HttpResponse<String> response = Unirest.get(marketalluri)
                 .header("accept", "application/json")
                 .asString();
         System.out.println(response.getBody());
@@ -251,7 +274,8 @@ public class UpbitServiceImpl implements UpbitService {
             System.out.println(idBuilder.toString());
             System.out.println(response3.getStatus());
             //System.out.println(response3.getBody().toString());
-            if(response3.getStatus()!= 200) {
+            int getStatus = response3.getStatus();
+            while(getStatus!= 200) {
                 System.out.println(response3.getHeaders().toString());
                 System.out.println(response3.getBody().toString());
                 Thread.sleep(60000);
@@ -264,6 +288,7 @@ public class UpbitServiceImpl implements UpbitService {
                     .asString();
                 System.out.println(response3.getHeaders().toString());
                 System.out.println(response3.getBody().toString());
+                getStatus = response3.getStatus();
             }
             parser = new JSONParser();
             jsonObject = (JSONObject)parser.parse(response3.getBody().toString());
@@ -291,5 +316,65 @@ public class UpbitServiceImpl implements UpbitService {
         System.out.println(upbitMarkets);
 
 
+    }
+    public List<UpbitTickerResponseDto> getUpbitTickerAll(String markets) throws JsonProcessingException {
+        LOGGER.info("getUpbitTickerAll starts");
+        LOGGER.info("getUpbitTickerAll ids {}" ,markets);
+
+        HttpResponse<String> response = Unirest.get(tickeruri)
+            .header("accept", "application/json")
+            .queryString("markets", markets)
+            .asString();
+        System.out.println(response.getBody());
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+        List<UpbitTickerDto> list =  objectMapper.readValue(response.getBody(), new TypeReference<List<UpbitTickerDto>>(){});
+        List<UpbitTickerResponseDto> upbitTickerResponseDtos = new ArrayList<UpbitTickerResponseDto>();
+        list.forEach(upbitTickerDto -> {
+            UpbitTickerResponseDto upbitTickerResponseDto = new UpbitTickerResponseDto();
+            upbitTickerResponseDto.setMarket(upbitTickerDto.getMarket());
+            upbitTickerResponseDto.setTrade_price(upbitTickerDto.getTrade_price());
+            upbitTickerResponseDto.setChange(upbitTickerDto.getChange());
+            upbitTickerResponseDto.setSigned_change_price(upbitTickerDto.getSigned_change_price());
+            upbitTickerResponseDto.setSigned_change_rate(upbitTickerDto.getSigned_change_rate());
+            CoinViewMeta coinViewMeta = coinViewMetaDAO.findByMarket(upbitTickerDto.getMarket());
+            LOGGER.error("coinviewMeta {} ", coinViewMeta);
+            upbitTickerResponseDto.setLogo(coinViewMeta.getLogo());
+            upbitTickerResponseDto.setEnglish_name(coinViewMeta.getEnglishName());
+            upbitTickerResponseDto.setKorean_name(coinViewMeta.getKoreanName());
+            upbitTickerResponseDto.setId(coinViewMeta.getId());
+
+            upbitTickerResponseDtos.add(upbitTickerResponseDto);
+        });
+
+        return upbitTickerResponseDtos;
+    }
+    @Scheduled(fixedDelay = 100000)
+    public void redisTest(){
+        ListOperations<String, List<SoarMeta>> soarmetas = redisTemplate.opsForList();
+        String key = "soarmeta";
+        long size = soarmetas.size(key) == null ? 0 : soarmetas.size(key); // NPE 체크해야함.
+        LOGGER.info("soarmeta test {}", soarmetas.range(key, -1, -1));
+        this.simpMessagingTemplate.convertAndSend("/coinview/getSoarCoin",  soarmetas.range(key, -1, -1).get(0));
+
+    }
+    public void upbitTickerWS(markets){
+        LOGGER.info("upbitTickerWS  call ");
+        this.webSocketUtil.connect();
+        JSONArray jsonArray = new JSONArray();
+
+        jsonArray.put(new kong.unirest.json.JSONObject().put("ticket", UUID.randomUUID()));
+        kong.unirest.json.JSONObject json = new kong.unirest.json.JSONObject();
+        json.put("type", "ticker");
+        List<String> list =new ArrayList<>();
+        list.add("KRW-BTC");
+        json.put("codes", list);
+        jsonArray.put(json);
+
+        LOGGER.info("jsonArray ticker input {} ", jsonArray.toString());
+        webSocketUtil.setParameter(jsonArray.toString());
+        //webSocketUtil.send(jsonArray.toString());
+        return "ok";
     }
 }

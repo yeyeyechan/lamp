@@ -5,5 +5,7 @@ import java.util.List;
 
 public interface CoinViewMetaDAO {
   List<CoinViewMeta> makeCoinViewMeta();
+  List<CoinViewMeta> findAllCoinViewMeta();
+  CoinViewMeta findByMarket(String market);
 
 }

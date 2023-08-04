@@ -3,6 +3,7 @@ package com.springboot.lamp.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.springboot.lamp.data.dto.UpbitMarketDto;
 import com.springboot.lamp.data.dto.UpbitMarketResponseDto;
+import com.springboot.lamp.data.dto.UpbitTickerResponseDto;
 import com.springboot.lamp.data.entity.UpbitMarket;
 import net.minidev.json.parser.ParseException;
 
@@ -23,4 +24,6 @@ public interface UpbitService {
 
     void deleteUpbitMarket(String market)throws Exception;
     void makeCoinViewMeta();
-}
+   List<UpbitTickerResponseDto> getUpbitTickerAll(String markets) throws JsonProcessingException ;
+
+    }
