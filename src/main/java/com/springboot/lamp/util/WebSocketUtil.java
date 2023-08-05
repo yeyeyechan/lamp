@@ -2,15 +2,16 @@ package com.springboot.lamp.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.springboot.lamp.controller.HelloController;
 import com.springboot.lamp.data.dao.CoinViewMetaDAO;
 import com.springboot.lamp.data.dto.UpbitMarketDto;
 import com.springboot.lamp.data.dto.UpbitTickerDto;
+import com.springboot.lamp.data.dto.upbit.UpbitWsTickerDto;
 import com.springboot.lamp.data.entity.CoinViewMeta;
 import com.springboot.lamp.data.entity.coinview.SoarMeta;
-import com.springboot.lamp.service.UpbitService;
 import java.util.List;
 import kong.unirest.json.JSONObject;
 import org.java_websocket.client.WebSocketClient;
@@ -33,7 +34,6 @@ public class WebSocketUtil extends WebSocketClient {
     private  String json;
     private final Logger LOGGER = LoggerFactory.getLogger(HelloController.class);
     public final CoinViewMetaDAO coinViewMetaDAO;
-    public final UpbitService upbitService;
     public final SimpMessagingTemplate simpMessagingTemplate;
     @Value("${upbit.wsuri}")
     private URI wsuri;
@@ -42,10 +42,9 @@ public class WebSocketUtil extends WebSocketClient {
     }
 
     @Autowired
-    public WebSocketUtil(URI serverURI, CoinViewMetaDAO coinViewMetaDAO, UpbitService upbitService, SimpMessagingTemplate simpMessagingTemplate) {
-        super(serverURI);
+    public WebSocketUtil(@Value("${upbit.wsuri}") URI wsuri, CoinViewMetaDAO coinViewMetaDAO, SimpMessagingTemplate simpMessagingTemplate) {
+        super(wsuri);
         this.coinViewMetaDAO = coinViewMetaDAO;
-        this.upbitService = upbitService;
         this.simpMessagingTemplate = simpMessagingTemplate;
 
     }
@@ -62,17 +61,21 @@ public class WebSocketUtil extends WebSocketClient {
             LOGGER.info("message from upbit ws  {} ", new String(bytes.array(), "UTF-8"));
             ObjectMapper objectMapper = new ObjectMapper();
             String wsdata =new String(bytes.array(), "UTF-8");
-            UpbitTickerDto upbitTickerDto =  objectMapper.readValue(wsdata, new TypeReference<UpbitTickerDto>(){});
+            objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-            CoinViewMeta coinViewMeta = this.coinViewMetaDAO.findByMarket(upbitTickerDto.getMarket());
+            UpbitWsTickerDto upbitWsTickerDto =  objectMapper.readValue(wsdata, new TypeReference<UpbitWsTickerDto>(){});
+            LOGGER.error("upbitWsTickerDto {} ", upbitWsTickerDto);
+            LOGGER.error("upbitWsTickerDto.getMarket() {} ", upbitWsTickerDto.getCode());
+
+            CoinViewMeta coinViewMeta = this.coinViewMetaDAO.findByMarket(upbitWsTickerDto.getCode());
             LOGGER.error("coinviewMeta {} ", coinViewMeta);
             SoarMeta soarMeta = new SoarMeta();
 
-            soarMeta.setMarket(upbitTickerDto.getMarket());
-            soarMeta.setTrade_price(upbitTickerDto.getTrade_price());
-            soarMeta.setChange_(upbitTickerDto.getChange());
-            soarMeta.setSigned_change_price(upbitTickerDto.getSigned_change_price());
-            soarMeta.setSigned_change_rate(upbitTickerDto.getSigned_change_rate());
+            soarMeta.setMarket(upbitWsTickerDto.getCode());
+            soarMeta.setTrade_price(upbitWsTickerDto.getTrade_price());
+            soarMeta.setChange_(upbitWsTickerDto.getChange());
+            soarMeta.setSigned_change_price(upbitWsTickerDto.getSigned_change_price());
+            soarMeta.setSigned_change_rate(upbitWsTickerDto.getSigned_change_rate());
             soarMeta.setLogo(coinViewMeta.getLogo());
             soarMeta.setId(coinViewMeta.getId());
             soarMeta.setKorean_name(coinViewMeta.getKoreanName());

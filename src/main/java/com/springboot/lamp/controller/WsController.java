@@ -34,7 +34,6 @@ public class WsController {
   }
 
   @MessageMapping("/call")
-  @SendTo("/coinview/getSoarCoin")
   public List<SoarMeta> soarmeta(String msg) throws Exception {
     LOGGER.info("receive message : " + msg);
     ListOperations<String, List<SoarMeta>> soarmetas = redisTemplate.opsForList();
@@ -44,6 +43,10 @@ public class WsController {
     LOGGER.info("soarmeta before send  {}", soarMetas);
 
     return soarMetas;
+  }
+  @SendTo("/coinview/getSoarCoin")
+public String hello()throws  Exception{
+    return "ok";
   }
 }
 
