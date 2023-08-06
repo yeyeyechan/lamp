@@ -25,5 +25,5 @@ public interface UpbitService {
     void deleteUpbitMarket(String market)throws Exception;
     void makeCoinViewMeta();
    List<UpbitTickerResponseDto> getUpbitTickerAll(String markets) throws JsonProcessingException ;
-   void upbitTickerWS(List<String> markets);
+   void upbitTickerWS(List<String> markets) throws InterruptedException;
     }

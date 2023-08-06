@@ -25,13 +25,13 @@ import java.util.*;
 public class GetController {
     private final Logger LOGGER = LoggerFactory.getLogger(HelloController.class);
     public final CoinViewMetaDAO coinViewMetaDAO;
-    public final WebSocketUtil webSocketUtil;
+   // public final WebSocketUtil webSocketUtil;
     @Value("${upbit.wsuri}")
     private URI wsuri;
 
-    GetController(CoinViewMetaDAO coinViewMetaDAO , WebSocketUtil webSocketUtil){
+    GetController(CoinViewMetaDAO coinViewMetaDAO ){
         this.coinViewMetaDAO =coinViewMetaDAO;
-        this.webSocketUtil = webSocketUtil;
+      //  this.webSocketUtil = webSocketUtil;
     }
     @GetMapping(value="/soar" )
     public String getSoar(){
@@ -54,8 +54,8 @@ public class GetController {
         return objectMapper.readValue(response.getBody(), new TypeReference<List<MarketAll>>(){});
     }
 
-    @GetMapping(value="/ticker")
-    public String getTicker() throws Exception {
+   /*   @GetMapping(value="/ticker")
+  public String getTicker() throws Exception {
         LOGGER.info("wsuri   {} ", wsuri);
         this.webSocketUtil.connect();
         JSONArray jsonArray = new JSONArray();
@@ -72,5 +72,5 @@ public class GetController {
         webSocketUtil.setParameter(jsonArray.toString());
         //webSocketUtil.send(jsonArray.toString());
         return "ok";
-    }
+    }*/
 }

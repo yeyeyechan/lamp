@@ -23,7 +23,10 @@ import com.springboot.lamp.data.entity.UpbitMarket;
 import com.springboot.lamp.data.entity.coinview.SoarMeta;
 import com.springboot.lamp.service.UpbitService;
 import com.springboot.lamp.util.WebSocketUtil;
+import java.net.URI;
+import java.util.Set;
 import java.util.UUID;
+import javax.websocket.Session;
 import kong.unirest.HttpResponse;
 import kong.unirest.Unirest;
 import kong.unirest.json.JSONArray;
@@ -53,6 +56,8 @@ public class UpbitServiceImpl implements UpbitService {
 
     @Value("${upbit.tickeruri}")
     private String tickeruri;
+    @Value("${upbit.wsuri}")
+    private URI wsuri;
     @Value("${coinmarketcap.coininfouri}")
     private String  coininfouri;
     @Value("${coinmarketcap.mapinfouri}")
@@ -64,16 +69,15 @@ public class UpbitServiceImpl implements UpbitService {
     public final CoinMarketMapDAO coinMarketMapDAO;
     public final CoinMarketMetaDAO coinMarketMetaDAO;
     public final CoinViewMetaDAO coinViewMetaDAO;
-    public final WebSocketUtil webSocketUtil;
+    public  WebSocketUtil webSocketUtil;
     @Autowired
-    UpbitServiceImpl(UpbitMarketDAO upbitMarketDAO, CoinMarketMetaDAO coinMarketMetaDAO, CoinMarketMapDAO coinMarketMapDAO, RedisTemplate redisTemplate, SimpMessagingTemplate simpMessagingTemplate,CoinViewMetaDAO coinViewMetaDAO, WebSocketUtil webSocketUtil){
+    UpbitServiceImpl(UpbitMarketDAO upbitMarketDAO, CoinMarketMetaDAO coinMarketMetaDAO, CoinMarketMapDAO coinMarketMapDAO, RedisTemplate redisTemplate, SimpMessagingTemplate simpMessagingTemplate,CoinViewMetaDAO coinViewMetaDAO){
         this.upbitMarketDAO = upbitMarketDAO;
         this.coinMarketMapDAO = coinMarketMapDAO;
         this.coinMarketMetaDAO = coinMarketMetaDAO;
         this.redisTemplate = redisTemplate;
         this.simpMessagingTemplate= simpMessagingTemplate;
         this.coinViewMetaDAO= coinViewMetaDAO;
-        this.webSocketUtil = webSocketUtil;
     }
 
     @Override
@@ -224,10 +228,10 @@ public class UpbitServiceImpl implements UpbitService {
         HttpResponse<String> response = Unirest.get(marketalluri)
                 .header("accept", "application/json")
                 .asString();
-        System.out.println(response.getBody());
+        //System.out.println(response.getBody());
         ObjectMapper objectMapper = new ObjectMapper();
         List<UpbitMarketDto> list =  objectMapper.readValue(response.getBody(), new TypeReference<List<UpbitMarketDto>>(){});
-        LOGGER.info("list size {} ", list.size());
+      //  LOGGER.info("list size {} ", list.size());
         this.saveAllUpbitMarket(list);
 
         HttpResponse<String> response2 = Unirest.get(mapinfouri)
@@ -264,10 +268,10 @@ public class UpbitServiceImpl implements UpbitService {
                     .header("X-CMC_PRO_API_KEY", coinmarketapikey)
                     .queryString("id", idBuilder.toString())
                     .asString();
-            System.out.println(i);
+            //System.out.println(i);
             //System.out.println(idBuilder.toString().length());
-            System.out.println(idBuilder.toString());
-            System.out.println(response3.getStatus());
+            //System.out.println(idBuilder.toString());
+            //System.out.println(response3.getStatus());
             //System.out.println(response3.getBody().toString());
             int getStatus = response3.getStatus();
             while(getStatus!= 200) {
@@ -306,21 +310,21 @@ public class UpbitServiceImpl implements UpbitService {
     }
     @Override
     public void makeCoinViewMeta(){
-        LOGGER.info("makeCoinViewMeta starts");
+        //LOGGER.info("makeCoinViewMeta starts");
         List<UpbitMarket> upbitMarkets =this.upbitMarketDAO.selectMarketByMarketKeyword("KRW-");
-        System.out.println(upbitMarkets);
+        //System.out.println(upbitMarkets);
 
 
     }
     public List<UpbitTickerResponseDto> getUpbitTickerAll(String markets) throws JsonProcessingException {
-        LOGGER.info("getUpbitTickerAll starts");
-        LOGGER.info("getUpbitTickerAll ids {}" ,markets);
+       // LOGGER.info("getUpbitTickerAll starts");
+       // LOGGER.info("getUpbitTickerAll ids {}" ,markets);
 
         HttpResponse<String> response = Unirest.get(tickeruri)
             .header("accept", "application/json")
             .queryString("markets", markets)
             .asString();
-        System.out.println(response.getBody());
+        //System.out.println(response.getBody());
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -334,7 +338,7 @@ public class UpbitServiceImpl implements UpbitService {
             upbitTickerResponseDto.setSigned_change_price(upbitTickerDto.getSigned_change_price());
             upbitTickerResponseDto.setSigned_change_rate(upbitTickerDto.getSigned_change_rate());
             CoinViewMeta coinViewMeta = coinViewMetaDAO.findByMarket(upbitTickerDto.getMarket());
-            LOGGER.error("coinviewMeta {} ", coinViewMeta);
+           // LOGGER.error("coinviewMeta {} ", coinViewMeta);
             upbitTickerResponseDto.setLogo(coinViewMeta.getLogo());
             upbitTickerResponseDto.setEnglish_name(coinViewMeta.getEnglishName());
             upbitTickerResponseDto.setKorean_name(coinViewMeta.getKoreanName());
@@ -350,12 +354,13 @@ public class UpbitServiceImpl implements UpbitService {
         ListOperations<String, List<SoarMeta>> soarmetas = redisTemplate.opsForList();
         String key = "soarmeta";
         long size = soarmetas.size(key) == null ? 0 : soarmetas.size(key); // NPE 체크해야함.
-        LOGGER.info("soarmeta test {}", soarmetas.range(key, -1, -1));
+        //LOGGER.info("soarmeta test {}", soarmetas.range(key, -1, -1));
         this.simpMessagingTemplate.convertAndSend("/coinview/getSoarCoin",  soarmetas.range(key, -1, -1).get(0));
 
     }
-    public void upbitTickerWS(List<String> markets){
-        LOGGER.info("upbitTickerWS  call ");
+    public void upbitTickerWS(List<String> markets) throws InterruptedException {
+       // LOGGER.info("upbitTickerWS  call ");
+        this.webSocketUtil = new WebSocketUtil(wsuri, coinViewMetaDAO,simpMessagingTemplate);
         this.webSocketUtil.connect();
         JSONArray jsonArray = new JSONArray();
 
@@ -365,7 +370,7 @@ public class UpbitServiceImpl implements UpbitService {
         json.put("codes", markets);
         jsonArray.put(json);
 
-        LOGGER.info("jsonArray ticker input {} ", jsonArray.toString());
+       // LOGGER.error("업비트 현재가 ws 통신 인풋 !!!{} ", jsonArray.toString());
         webSocketUtil.setParameter(jsonArray.toString());
         //webSocketUtil.send(jsonArray.toString());
 

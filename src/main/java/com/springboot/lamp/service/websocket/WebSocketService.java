@@ -50,7 +50,7 @@ public class WebSocketService {
     LOGGER.info("soarmeta before send  {}", soarMetas);
 
     for(Session s : clients){
-      LOGGER.info("send message : " + soarMetas.toString());
+      //LOGGER.info("send message : " + soarMetas.toString());
       s.getBasicRemote().sendText(soarMetas.toString());
     }
   }

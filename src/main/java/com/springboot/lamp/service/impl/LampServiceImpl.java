@@ -11,6 +11,7 @@ import com.springboot.lamp.service.UpbitService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import net.minidev.json.parser.ParseException;
 import org.slf4j.Logger;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,15 +42,9 @@ public class LampServiceImpl implements LampService {
   @Override
   public void afterPropertiesSet() throws Exception {
     init();
-    ListOperations<String, List<SoarMeta>> soarmetas = redisTemplate.opsForList();
-    String key = "soarmeta";
-    long size = soarmetas.size(key) == null ? 0 : soarmetas.size(key); // NPE 체크해야함.
-    List<SoarMeta> soarMetas = soarmetas.range(key, -1, -1).get(0);
-    List<String> marktets = new ArrayList<>();
-    soarMetas.forEach(soarMeta -> {
-      marktets.add(soarMeta.getMarket());
-    });
-    this.upbitService.upbitTickerWS(marktets);
+    List<String> markets = new ArrayList<>();
+    markets = makeRedisRisingMarkets();
+    this.upbitService.upbitTickerWS(markets);
   }
 
   public void init() throws ParseException, JsonProcessingException, InterruptedException {
@@ -93,13 +89,13 @@ public class LampServiceImpl implements LampService {
     });
     String marketString = markets.toString().substring(0, markets.toString().length()-1);
     List<UpbitTickerResponseDto> coinViewMetaResponseDtos = this.upbitService.getUpbitTickerAll(marketString);
-    LOGGER.info("coinViewMetaResponseDtos {} ", coinViewMetaResponseDtos);
+   // LOGGER.info("coinViewMetaResponseDtos {} ", coinViewMetaResponseDtos);
 
     List<UpbitTickerResponseDto> reverseOrderList =  coinViewMetaResponseDtos.stream()
         .sorted(Comparator.comparing(UpbitTickerResponseDto::getSigned_change_rate, Comparator.reverseOrder())).filter(upbitTickerResponseDto
-            -> upbitTickerResponseDto.getSigned_change_rate()>0.02).collect(
+            -> upbitTickerResponseDto.getSigned_change_rate()>0.01).collect(
             Collectors.toList());
-    LOGGER.info("reverseOrderList {} ", reverseOrderList);
+   // LOGGER.info("reverseOrderList {} ", reverseOrderList);
     return reverseOrderList;
   }
   public void saveToRedisRisingCoinMeta(List<UpbitTickerResponseDto> upbitTickerResponseDtos){
@@ -117,7 +113,7 @@ public class LampServiceImpl implements LampService {
       soarMeta.setId(upbitTickerResponseDto.getId());
       soarmetas.add(soarMeta);
     });
-    LOGGER.info("soarmetas init {} ", soarmetas);
+   // LOGGER.info("soarmetas init {} ", soarmetas);
 
     ListOperations<String, List<SoarMeta>> sormetaredis = redisTemplate.opsForList();
     ValueOperations<String, String> sorStringmetaredis = redisStringTemplate.opsForValue();
@@ -125,10 +121,45 @@ public class LampServiceImpl implements LampService {
     sormetaredis.rightPush("soarmeta" , soarmetas);
     String key = "soarmeta";
     long size = sormetaredis.size(key) == null ? 0 : sormetaredis.size(key); // NPE 체크해야함.
-    LOGGER.info("sormetaredisinit {}", sormetaredis.range(key, -1, -1).toString());
+    //LOGGER.info("sormetaredisinit {}", sormetaredis.range(key, -1, -1).toString());
 
-    LOGGER.info("sormetaredisinit {}", sormetaredis.range(key, -1, -1).toString());
+   // LOGGER.info("sormetaredisinit {}", sormetaredis.range(key, -1, -1).toString());
 
-    LOGGER.info("soarStringmeta init {} ", sorStringmetaredis.get("soarStringmeta"));
+   // LOGGER.info("soarStringmeta init {} ", sorStringmetaredis.get("soarStringmeta"));
+  }
+
+  @Scheduled(fixedDelay = 100000)
+  public void updateRedisAndUpbitWS() throws JsonProcessingException, InterruptedException {
+    //상승코인찾기
+    List<UpbitTickerResponseDto> reverseOrderList =  this.getRisingCoin();
+    //레디스에 저장
+    this.saveToRedisRisingCoinMeta(reverseOrderList);
+    //markets 만들기
+    List<String> markets = makeRedisRisingMarkets();
+    Set<Thread> setOfThread = Thread.getAllStackTraces().keySet();
+
+    for(Thread thread : setOfThread){
+      LOGGER.error(thread.getName());
+      if(thread.getName().contains("WebSocketWriteThread-")){
+        thread.interrupt();
+        LOGGER.error("thread kill");
+        break;
+      }
+    }
+    //ws 연결
+    LOGGER.error("ws 재연결");
+    this.upbitService.upbitTickerWS(markets);
+    LOGGER.error("ws 통신 재연결!!!!!!");
+  }
+  public List<String> makeRedisRisingMarkets(){
+    ListOperations<String, List<SoarMeta>> soarmetas = redisTemplate.opsForList();
+    String key = "soarmeta";
+    long size = soarmetas.size(key) == null ? 0 : soarmetas.size(key); // NPE 체크해야함.
+    List<SoarMeta> soarMetas = soarmetas.range(key, -1, -1).get(0);
+    List<String> markets = new ArrayList<>();
+    soarMetas.forEach(soarMeta -> {
+      markets.add(soarMeta.getMarket());
+    });
+    return markets;
   }
 }

@@ -35,12 +35,12 @@ public class WsController {
 
   @MessageMapping("/call")
   public List<SoarMeta> soarmeta(String msg) throws Exception {
-    LOGGER.info("receive message : " + msg);
+    //LOGGER.info("receive message : " + msg);
     ListOperations<String, List<SoarMeta>> soarmetas = redisTemplate.opsForList();
     String key = "soarmeta";
     long size = soarmetas.size(key) == null ? 0 : soarmetas.size(key); // NPE 체크해야함.
     List<SoarMeta> soarMetas = soarmetas.range(key, -1, -1).get(0);
-    LOGGER.info("soarmeta before send  {}", soarMetas);
+    //LOGGER.info("soarmeta before send  {}", soarMetas);
 
     return soarMetas;
   }
